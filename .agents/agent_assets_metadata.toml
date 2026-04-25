@@ -1,0 +1,31 @@
+uploads = []
+
+[[generated]]
+id = "amDGRXpQ7IDSYU5lH1u5e"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "packeasy icon"
+
+[[generated]]
+id = "PrjE13dmcaBJl04-Y17ln"
+uri = "file://artifacts/mobile/assets/images/character-1.png"
+type = "image"
+title = "onboarding character 1"
+
+[[generated]]
+id = "fCQnwzWxENO9dSAN8KFWV"
+uri = "file://artifacts/mobile/assets/images/character-2.png"
+type = "image"
+title = "onboarding character 2"
+
+[[generated]]
+id = "8_-xh32AaIT2u_iK8NVYv"
+uri = "file://artifacts/mobile/assets/images/character-3.png"
+type = "image"
+title = "onboarding character 3"
+
+[[outputs]]
+id = "IYPY79rtQguY8SRN2zMky"
+uri = "file://attached_assets/stock_images/travel_bg.jpg"
+type = "image"
+title = "beautiful tropical beach destination travel sunset aerial view colorful sky"
