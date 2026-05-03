@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
@@ -9,16 +9,16 @@ import { useAuth } from "@/context/AuthContext";
 import type { OAuthProvider } from "@/lib/oauth";
 
 export default function LoginScreen() {
-  const router = useRouter();
   const { login, oauthLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async () => {
-    if (submitting) return;
+    if (submitting || demoLoading) return;
     setError(null);
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -37,6 +37,21 @@ export default function LoginScreen() {
     }
   };
 
+  const onDemoLogin = async () => {
+    if (submitting || demoLoading) return;
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await login({ email: "demo@packeasy.local", password: "password123" });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Demo login failed. Please try again.";
+      setError(extractMessage(message));
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     try {
       await oauthLogin(provider);
@@ -46,6 +61,8 @@ export default function LoginScreen() {
       setError(extractMessage(message));
     }
   };
+
+  const busy = submitting || demoLoading;
 
   return (
     <AuthShell
@@ -62,6 +79,30 @@ export default function LoginScreen() {
         </>
       }
     >
+      <Pressable
+        onPress={onDemoLogin}
+        disabled={busy}
+        style={({ pressed }) => [
+          styles.demoBtn,
+          (pressed || busy) && { opacity: 0.75 },
+        ]}
+      >
+        {demoLoading ? (
+          <ActivityIndicator color="#22c46a" />
+        ) : (
+          <>
+            <Text style={styles.demoEmoji}>⚡</Text>
+            <Text style={styles.demoText}>Try Demo — one tap login</Text>
+          </>
+        )}
+      </Pressable>
+
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerLabel}>or sign in manually</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
       <AuthInput
         label="Email"
         placeholder="Email Address"
@@ -98,10 +139,10 @@ export default function LoginScreen() {
 
       <Pressable
         onPress={onSubmit}
-        disabled={submitting}
+        disabled={busy}
         style={({ pressed }) => [
           styles.primaryBtn,
-          (pressed || submitting) && { opacity: 0.85 },
+          (pressed || busy) && { opacity: 0.85 },
         ]}
       >
         {submitting ? (
@@ -120,6 +161,42 @@ function extractMessage(raw: string): string {
 }
 
 const styles = StyleSheet.create({
+  demoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(34,196,106,0.15)",
+    borderWidth: 1.5,
+    borderColor: "#22c46a",
+    height: 52,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  demoEmoji: {
+    fontSize: 18,
+  },
+  demoText: {
+    color: "#22c46a",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  dividerLabel: {
+    color: "rgba(255,255,255,0.5)",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
   optionsRow: {
     flexDirection: "row",
     alignItems: "center",
