@@ -1,24 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
 import { api } from "@/lib/api";
 import { authStorage, type StoredUser } from "@/lib/auth-storage";
 import { useOAuth, type OAuthProvider } from "@/lib/oauth";
-
-const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : process.env.EXPO_PUBLIC_API_URL || "";
-
-setBaseUrl(API_BASE || null);
 
 type AuthState = {
   user: StoredUser | null;
@@ -38,16 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const tokenRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    tokenRef.current = token;
-  }, [token]);
-
-  useEffect(() => {
-    setAuthTokenGetter(() => tokenRef.current);
-    return () => setAuthTokenGetter(null);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
       if (cancelled) return;
       if (storedToken && storedUser) {
-        tokenRef.current = storedToken;
         setToken(storedToken);
         setUser(storedUser);
       }
@@ -71,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const persistAuth = useCallback(
     async (nextUser: StoredUser, nextToken: string) => {
-      tokenRef.current = nextToken;
       setToken(nextToken);
       setUser(nextUser);
       await Promise.all([
@@ -109,10 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback<AuthState["logout"]>(async () => {
     try {
-      if (tokenRef.current) await api.logout();
+      await api.logout();
     } catch {
     }
-    tokenRef.current = null;
     setToken(null);
     setUser(null);
     await authStorage.clear();
