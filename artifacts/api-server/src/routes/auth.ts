@@ -4,6 +4,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 
 import { newId } from "../lib/ids";
+import { DEMO_SESSION_TOKEN, DEMO_USER, isDemoCredentials } from "../lib/demo";
 import { hashPassword, verifyPassword } from "../lib/passwords";
 import { createSession, deleteSession } from "../lib/sessions";
 import { requireAuth } from "../middlewares/auth";
@@ -32,6 +33,14 @@ router.post("/auth/signup", async (req, res) => {
   }
   const { name, email, password } = parsed.data;
 
+  if (isDemoCredentials(email, password)) {
+    return res.json({
+      user: DEMO_USER,
+      token: DEMO_SESSION_TOKEN,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+    });
+  }
+
   const existing = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -42,16 +51,11 @@ router.post("/auth/signup", async (req, res) => {
   }
 
   const passwordHash = await hashPassword(password);
-  const user = {
-    id: newId(),
-    email,
-    name,
-    passwordHash,
-  };
+  const user = { id: newId(), email, name, passwordHash };
   await db.insert(usersTable).values(user);
   const session = await createSession(user.id);
 
-  res.json({
+  return res.json({
     user: publicUser(user),
     token: session.token,
     expiresAt: session.expiresAt.toISOString(),
@@ -65,6 +69,14 @@ router.post("/auth/login", async (req, res) => {
   }
   const { email, password } = parsed.data;
 
+  if (isDemoCredentials(email, password)) {
+    return res.json({
+      user: DEMO_USER,
+      token: DEMO_SESSION_TOKEN,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+    });
+  }
+
   const rows = await db
     .select()
     .from(usersTable)
@@ -74,12 +86,15 @@ router.post("/auth/login", async (req, res) => {
   if (!user) {
     return res.status(401).json({ error: "invalid_credentials", message: "Email or password is incorrect." });
   }
+  if (!user.passwordHash) {
+    return res.status(401).json({ error: "oauth_account", message: "This account uses social login." });
+  }
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
     return res.status(401).json({ error: "invalid_credentials", message: "Email or password is incorrect." });
   }
   const session = await createSession(user.id);
-  res.json({
+  return res.json({
     user: publicUser(user),
     token: session.token,
     expiresAt: session.expiresAt.toISOString(),
@@ -87,13 +102,19 @@ router.post("/auth/login", async (req, res) => {
 });
 
 router.post("/auth/logout", requireAuth, async (req, res) => {
+  if (req.userId === DEMO_USER.id) {
+    return res.json({ ok: true });
+  }
   if (req.sessionToken) {
     await deleteSession(req.sessionToken);
   }
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 router.get("/auth/me", requireAuth, async (req, res) => {
+  if (req.userId === DEMO_USER.id) {
+    return res.json({ user: DEMO_USER });
+  }
   const rows = await db
     .select()
     .from(usersTable)
@@ -101,7 +122,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     .limit(1);
   const user = rows[0];
   if (!user) return res.status(404).json({ error: "not_found" });
-  res.json({ user: publicUser(user) });
+  return res.json({ user: publicUser(user) });
 });
 
 export default router;

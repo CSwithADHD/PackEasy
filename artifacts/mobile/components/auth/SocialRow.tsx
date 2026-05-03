@@ -1,19 +1,36 @@
 import { FontAwesome, FontAwesome5, Ionicons } from "@expo/vector-icons";
-import React from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+
+import type { OAuthProvider } from "@/lib/oauth";
 
 type Props = {
   label: string;
+  onOAuthPress?: (provider: OAuthProvider) => Promise<void>;
 };
 
-function notifyComingSoon(provider: string) {
-  Alert.alert(
-    `${provider} sign-in coming soon`,
-    "For now, please sign up with your email and password.",
-  );
-}
+export function SocialRow({ label, onOAuthPress }: Props) {
+  const [loading, setLoading] = useState<OAuthProvider | null>(null);
 
-export function SocialRow({ label }: Props) {
+  const handlePress = async (provider: OAuthProvider) => {
+    if (!onOAuthPress) {
+      Alert.alert(
+        `${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in coming soon`,
+        "For now, please sign up with your email and password.",
+      );
+      return;
+    }
+    setLoading(provider);
+    try {
+      await onOAuthPress(provider);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "OAuth login failed";
+      Alert.alert("Login Error", message);
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <View style={styles.wrap}>
       <View style={styles.dividerRow}>
@@ -22,17 +39,37 @@ export function SocialRow({ label }: Props) {
         <View style={styles.line} />
       </View>
       <View style={styles.row}>
-        <SocialBtn onPress={() => notifyComingSoon("Google")}>
-          <FontAwesome name="google" size={22} color="#ffffff" />
+        <SocialBtn
+          onPress={() => handlePress("google")}
+          disabled={loading !== null}
+        >
+          {loading === "google" ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <FontAwesome name="google" size={22} color="#ffffff" />
+          )}
         </SocialBtn>
-        <SocialBtn onPress={() => notifyComingSoon("Apple")}>
-          <Ionicons name="logo-apple" size={24} color="#ffffff" />
+        <SocialBtn
+          onPress={() => handlePress("apple")}
+          disabled={loading !== null}
+        >
+          {loading === "apple" ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Ionicons name="logo-apple" size={24} color="#ffffff" />
+          )}
         </SocialBtn>
-        <SocialBtn onPress={() => notifyComingSoon("Facebook")}>
-          <FontAwesome5 name="facebook-f" size={22} color="#ffffff" />
+        <SocialBtn
+          onPress={() => handlePress("facebook")}
+          disabled={loading !== null}
+        >
+          {loading === "facebook" ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <FontAwesome5 name="facebook-f" size={22} color="#ffffff" />
+          )}
         </SocialBtn>
       </View>
-      <Text style={styles.note}>Social sign-in is coming soon</Text>
     </View>
   );
 }
@@ -40,14 +77,20 @@ export function SocialRow({ label }: Props) {
 function SocialBtn({
   children,
   onPress,
+  disabled,
 }: {
   children: React.ReactNode;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.btn,
+        (pressed || disabled) && { opacity: 0.7 },
+      ]}
     >
       {children}
     </Pressable>
@@ -85,11 +128,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  note: {
-    color: "rgba(255,255,255,0.7)",
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    textAlign: "center",
   },
 });
