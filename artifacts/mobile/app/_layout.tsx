@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,7 +17,6 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { TripProvider } from "@/context/TripContext";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-SplashScreen.setOptions({ duration: 250, fade: true });
 
 const queryClient = new QueryClient();
 
@@ -47,12 +46,14 @@ function AuthGate() {
   );
 }
 
-function AppProviders({ children }: { children: React.ReactNode }) {
-  if (Platform.OS === "web") {
+function KeyboardWrapper({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === "web") return <>{children}</>;
+  try {
+    const { KeyboardProvider } = require("react-native-keyboard-controller");
+    return <KeyboardProvider>{children}</KeyboardProvider>;
+  } catch {
     return <>{children}</>;
   }
-  const { KeyboardProvider } = require("react-native-keyboard-controller");
-  return <KeyboardProvider>{children}</KeyboardProvider>;
 }
 
 export default function RootLayout() {
@@ -63,7 +64,17 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const ready = fontsLoaded || !!fontError;
+  const [timedOut, setTimedOut] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => setTimedOut(true), 2500);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const ready = fontsLoaded || !!fontError || timedOut;
 
   useEffect(() => {
     if (ready) {
@@ -79,9 +90,9 @@ export default function RootLayout() {
         <AuthProvider>
           <TripProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <AppProviders>
+              <KeyboardWrapper>
                 <AuthGate />
-              </AppProviders>
+              </KeyboardWrapper>
             </GestureHandlerRootView>
           </TripProvider>
         </AuthProvider>
