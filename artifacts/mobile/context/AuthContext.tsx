@@ -13,8 +13,9 @@ import React, {
 import { api } from "@/lib/api";
 import { authStorage, type StoredUser } from "@/lib/auth-storage";
 
-const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
-const API_BASE = DOMAIN ? `https://${DOMAIN}` : "";
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080` : "");
 
 setBaseUrl(API_BASE || null);
 

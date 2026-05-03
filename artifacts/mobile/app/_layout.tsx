@@ -8,15 +8,13 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { TripProvider } from "@/context/TripContext";
-import { preloadAllImages } from "@/lib/preloaded-assets";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 250, fade: true });
@@ -49,6 +47,14 @@ function AuthGate() {
   );
 }
 
+function AppProviders({ children }: { children: React.ReactNode }) {
+  if (Platform.OS === "web") {
+    return <>{children}</>;
+  }
+  const { KeyboardProvider } = require("react-native-keyboard-controller");
+  return <KeyboardProvider>{children}</KeyboardProvider>;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -56,19 +62,8 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
-  const [imagesLoaded, setImagesLoaded] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    preloadAllImages().finally(() => {
-      if (!cancelled) setImagesLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const ready = (fontsLoaded || fontError) && imagesLoaded;
+  const ready = fontsLoaded || !!fontError;
 
   useEffect(() => {
     if (ready) {
@@ -80,19 +75,17 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <TripProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <AuthGate />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </TripProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TripProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <AppProviders>
+                <AuthGate />
+              </AppProviders>
+            </GestureHandlerRootView>
+          </TripProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
