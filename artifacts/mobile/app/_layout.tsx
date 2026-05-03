@@ -31,7 +31,10 @@ function AuthGate() {
     if (loading) return;
     const top = segments[0] ?? "";
     const inProtected = PROTECTED_PREFIXES.some((p) => top === p);
-    if (!token && inProtected) {
+    const inAuth = top === "(auth)" || top === "";
+    if (token && inAuth) {
+      router.replace("/(tabs)");
+    } else if (!token && inProtected) {
       router.replace("/(auth)/login");
     }
   }, [loading, token, segments, router]);

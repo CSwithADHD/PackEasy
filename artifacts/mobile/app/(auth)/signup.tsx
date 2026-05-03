@@ -37,7 +37,6 @@ export default function SignupScreen() {
     setSubmitting(true);
     try {
       await signup({ name: trimmedName, email: trimmedEmail, password });
-      router.replace("/(tabs)");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Signup failed. Please try again.";

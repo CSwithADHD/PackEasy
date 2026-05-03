@@ -28,7 +28,6 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login({ email: trimmedEmail, password });
-      router.replace("/(tabs)");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Login failed. Please try again.";
@@ -41,7 +40,6 @@ export default function LoginScreen() {
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     try {
       await oauthLogin(provider);
-      router.replace("/(tabs)");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : `${provider} login failed.`;
