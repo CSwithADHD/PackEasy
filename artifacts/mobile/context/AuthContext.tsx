@@ -1,3 +1,4 @@
+import { onAuthStateChanged } from "firebase/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import React, {
   createContext,
@@ -8,6 +9,7 @@ import React, {
   useState,
 } from "react";
 
+import { auth } from "@/lib/firebase";
 import { api } from "@/lib/api";
 import { authStorage, type StoredUser } from "@/lib/auth-storage";
 import { useOAuth, type OAuthProvider } from "@/lib/oauth";
@@ -32,22 +34,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [storedToken, storedUser] = await Promise.all([
-        authStorage.getToken(),
-        authStorage.getUser(),
-      ]);
-      if (cancelled) return;
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(storedUser);
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        const stored: StoredUser = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName ?? firebaseUser.email ?? "User",
+          email: firebaseUser.email ?? "",
+        };
+        setToken(idToken);
+        setUser(stored);
+        await Promise.all([
+          authStorage.setToken(idToken),
+          authStorage.setUser(stored),
+        ]);
+      } else {
+        setToken(null);
+        setUser(null);
+        await authStorage.clear();
       }
       setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    });
+    return unsub;
   }, []);
 
   const persistAuth = useCallback(

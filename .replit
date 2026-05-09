@@ -38,3 +38,13 @@ externalPort = 3000
 [[ports]]
 localPort = 18116
 externalPort = 3002
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyDzYHrIiAldT62cc_u60ptirA3ucJgbuuI"
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN = "packeasy-5dcf3.firebaseapp.com"
+EXPO_PUBLIC_FIREBASE_PROJECT_ID = "packeasy-5dcf3"
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET = "packeasy-5dcf3.firebasestorage.app"
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "470117010788"
+EXPO_PUBLIC_FIREBASE_APP_ID = "1:470117010788:web:11c10defae0dbf6c4fbe71"

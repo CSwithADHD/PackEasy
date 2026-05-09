@@ -1,3 +1,24 @@
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore/lite";
+
+import { auth, db } from "./firebase";
 import type { StoredUser } from "./auth-storage";
 
 export type ApiTrip = {
@@ -44,108 +65,6 @@ export type AuthResponse = {
   expiresAt: string;
 };
 
-let _seq = 100;
-function uid() {
-  return `local-${++_seq}`;
-}
-
-function delay(ms = 180) {
-  return new Promise<void>((r) => setTimeout(r, ms));
-}
-
-function deepClone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v));
-}
-
-const NOW = new Date().toISOString();
-
-const SEED: ApiTrip[] = [
-  {
-    id: "trip-paris",
-    userId: "demo",
-    destination: "Paris",
-    country: "France",
-    emoji: "🗼",
-    startDate: "2026-06-15",
-    endDate: "2026-06-22",
-    createdAt: NOW,
-    categories: [
-      {
-        id: "cat-p1",
-        tripId: "trip-paris",
-        name: "Clothes",
-        icon: "shirt",
-        position: 0,
-        items: [
-          { id: "i-p1", categoryId: "cat-p1", label: "T-shirts (×5)", done: true, position: 0 },
-          { id: "i-p2", categoryId: "cat-p1", label: "Jeans", done: true, position: 1 },
-          { id: "i-p3", categoryId: "cat-p1", label: "Light jacket", done: false, position: 2 },
-          { id: "i-p4", categoryId: "cat-p1", label: "Comfortable shoes", done: false, position: 3 },
-        ],
-      },
-      {
-        id: "cat-p2",
-        tripId: "trip-paris",
-        name: "Toiletries",
-        icon: "droplet",
-        position: 1,
-        items: [
-          { id: "i-p5", categoryId: "cat-p2", label: "Toothbrush & paste", done: true, position: 0 },
-          { id: "i-p6", categoryId: "cat-p2", label: "Sunscreen SPF 50", done: false, position: 1 },
-          { id: "i-p7", categoryId: "cat-p2", label: "Moisturiser", done: false, position: 2 },
-        ],
-      },
-      {
-        id: "cat-p3",
-        tripId: "trip-paris",
-        name: "Electronics",
-        icon: "zap",
-        position: 2,
-        items: [
-          { id: "i-p8", categoryId: "cat-p3", label: "Phone charger", done: true, position: 0 },
-          { id: "i-p9", categoryId: "cat-p3", label: "Travel adapter (EU)", done: false, position: 1 },
-          { id: "i-p10", categoryId: "cat-p3", label: "Earbuds", done: true, position: 2 },
-        ],
-      },
-    ],
-    tasks: [
-      { id: "t-p1", tripId: "trip-paris", label: "Book Eiffel Tower tickets", done: true, createdAt: NOW },
-      { id: "t-p2", tripId: "trip-paris", label: "Get travel insurance", done: false, createdAt: NOW },
-      { id: "t-p3", tripId: "trip-paris", label: "Notify bank of travel dates", done: false, createdAt: NOW },
-    ],
-  },
-  {
-    id: "trip-tokyo",
-    userId: "demo",
-    destination: "Tokyo",
-    country: "Japan",
-    emoji: "🗾",
-    startDate: "2026-09-01",
-    endDate: "2026-09-14",
-    createdAt: NOW,
-    categories: [
-      {
-        id: "cat-t1",
-        tripId: "trip-tokyo",
-        name: "Essentials",
-        icon: "star",
-        position: 0,
-        items: [
-          { id: "i-t1", categoryId: "cat-t1", label: "Passport", done: false, position: 0 },
-          { id: "i-t2", categoryId: "cat-t1", label: "IC Suica card", done: false, position: 1 },
-          { id: "i-t3", categoryId: "cat-t1", label: "Yen cash", done: false, position: 2 },
-        ],
-      },
-    ],
-    tasks: [
-      { id: "t-t1", tripId: "trip-tokyo", label: "Book JR Pass", done: false, createdAt: NOW },
-      { id: "t-t2", tripId: "trip-tokyo", label: "Get pocket WiFi", done: false, createdAt: NOW },
-    ],
-  },
-];
-
-let _trips: ApiTrip[] = deepClone(SEED);
-
 const DEFAULT_CATEGORIES = [
   {
     name: "Clothes",
@@ -169,53 +88,117 @@ const DEFAULT_CATEGORIES = [
   },
 ];
 
-function getTrip(tripId: string): ApiTrip | undefined {
-  return _trips.find((t) => t.id === tripId);
-}
+async function loadFullTrip(tripId: string): Promise<ApiTrip | null> {
+  const tripSnap = await getDoc(doc(db, "trips", tripId));
+  if (!tripSnap.exists()) return null;
+  const td = tripSnap.data();
 
-function tripResponse(tripId: string) {
-  const trip = deepClone(getTrip(tripId))!;
-  return { trip };
-}
+  const catsSnap = await getDocs(
+    query(collection(db, "categories"), where("tripId", "==", tripId), orderBy("position"))
+  );
 
-const DEMO_USER: StoredUser = {
-  id: "demo",
-  name: "Demo User",
-  email: "demo@packeasy.local",
-};
+  const categories: ApiCategory[] = [];
+  for (const catDoc of catsSnap.docs) {
+    const catData = catDoc.data();
+    const itemsSnap = await getDocs(
+      query(collection(db, "items"), where("categoryId", "==", catDoc.id), orderBy("position"))
+    );
+    const items: ApiItem[] = itemsSnap.docs.map((d) => ({
+      id: d.id,
+      categoryId: catDoc.id,
+      label: d.data().label,
+      done: d.data().done ?? false,
+      position: d.data().position ?? 0,
+    }));
+    categories.push({
+      id: catDoc.id,
+      tripId,
+      name: catData.name,
+      icon: catData.icon ?? "folder",
+      position: catData.position ?? 0,
+      items,
+    });
+  }
+
+  const tasksSnap = await getDocs(
+    query(collection(db, "tasks"), where("tripId", "==", tripId), orderBy("createdAt"))
+  );
+  const tasks: ApiTask[] = tasksSnap.docs.map((d) => ({
+    id: d.id,
+    tripId,
+    label: d.data().label,
+    done: d.data().done ?? false,
+    createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+  }));
+
+  return {
+    id: tripId,
+    userId: td.userId,
+    destination: td.destination,
+    country: td.country ?? null,
+    emoji: td.emoji ?? null,
+    startDate: td.startDate ?? null,
+    endDate: td.endDate ?? null,
+    createdAt: td.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    categories,
+    tasks,
+  };
+}
 
 export const api = {
-  async signup(_input: { name: string; email: string; password: string }): Promise<AuthResponse> {
-    await delay();
+  async signup(input: { name: string; email: string; password: string }): Promise<AuthResponse> {
+    const cred = await createUserWithEmailAndPassword(auth, input.email, input.password);
+    await updateProfile(cred.user, { displayName: input.name });
+    const token = await cred.user.getIdToken();
     return {
-      user: { id: uid(), name: _input.name, email: _input.email },
-      token: "mock-token",
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+      user: { id: cred.user.uid, name: input.name, email: input.email },
+      token,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     };
   },
 
-  async login(_input: { email: string; password: string }): Promise<AuthResponse> {
-    await delay();
+  async login(input: { email: string; password: string }): Promise<AuthResponse> {
+    const cred = await signInWithEmailAndPassword(auth, input.email, input.password);
+    const token = await cred.user.getIdToken();
+    const name = cred.user.displayName ?? input.email.split("@")[0];
     return {
-      user: DEMO_USER,
-      token: "mock-token",
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+      user: { id: cred.user.uid, name, email: input.email },
+      token,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60).toISOString(),
     };
   },
 
   async logout(): Promise<{ ok: true }> {
-    await delay(50);
+    await signOut(auth);
     return { ok: true };
   },
 
   async me(): Promise<{ user: StoredUser }> {
-    await delay(50);
-    return { user: DEMO_USER };
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    return {
+      user: {
+        id: user.uid,
+        name: user.displayName ?? user.email ?? "User",
+        email: user.email ?? "",
+      },
+    };
   },
 
   async listTrips(): Promise<{ trips: ApiTrip[] }> {
-    await delay();
-    return { trips: deepClone(_trips) };
+    const userId = auth.currentUser?.uid;
+    if (!userId) return { trips: [] };
+
+    const snap = await getDocs(
+      query(collection(db, "trips"), where("userId", "==", userId), orderBy("createdAt"))
+    );
+
+    const trips: ApiTrip[] = [];
+    for (const docSnap of snap.docs) {
+      const trip = await loadFullTrip(docSnap.id);
+      if (trip) trips.push(trip);
+    }
+    return { trips };
   },
 
   async createTrip(input: {
@@ -224,158 +207,171 @@ export const api = {
     emoji?: string | null;
     smart?: boolean;
   }): Promise<{ trip: ApiTrip }> {
-    await delay();
-    const id = uid();
-    const now = new Date().toISOString();
-    const trip: ApiTrip = {
-      id,
-      userId: "demo",
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const tripRef = await addDoc(collection(db, "trips"), {
+      userId,
       destination: input.destination,
       country: input.country ?? null,
       emoji: input.emoji ?? null,
       startDate: null,
       endDate: null,
-      createdAt: now,
-      categories: [],
-      tasks: [],
-    };
+      createdAt: serverTimestamp(),
+    });
+
     if (input.smart) {
-      let catSeq = 0;
+      let pos = 0;
       for (const def of DEFAULT_CATEGORIES) {
-        const catId = `${id}-cat-${catSeq++}`;
-        trip.categories.push({
-          id: catId,
-          tripId: id,
+        const catRef = await addDoc(collection(db, "categories"), {
+          tripId: tripRef.id,
           name: def.name,
           icon: def.icon,
-          position: catSeq - 1,
-          items: def.items.map((label, pos) => ({
-            id: `${catId}-i-${pos}`,
-            categoryId: catId,
+          position: pos++,
+        });
+        let itemPos = 0;
+        for (const label of def.items) {
+          await addDoc(collection(db, "items"), {
+            categoryId: catRef.id,
+            tripId: tripRef.id,
             label,
             done: false,
-            position: pos,
-          })),
-        });
+            position: itemPos++,
+          });
+        }
       }
     }
-    _trips.push(trip);
-    return tripResponse(id);
+
+    const trip = await loadFullTrip(tripRef.id);
+    return { trip: trip! };
   },
 
   async seedTrip(tripId: string): Promise<{ trip: ApiTrip }> {
-    await delay();
-    const trip = getTrip(tripId);
-    if (!trip) throw new Error("Trip not found");
-    let catSeq = trip.categories.length;
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const existingCats = await getDocs(
+      query(collection(db, "categories"), where("tripId", "==", tripId))
+    );
+    const existingNames = new Set(existingCats.docs.map((d) => d.data().name));
+    let pos = existingCats.size;
+
     for (const def of DEFAULT_CATEGORIES) {
-      if (trip.categories.some((c) => c.name === def.name)) continue;
-      const catId = `${tripId}-cat-${catSeq++}`;
-      trip.categories.push({
-        id: catId,
+      if (existingNames.has(def.name)) continue;
+      const catRef = await addDoc(collection(db, "categories"), {
         tripId,
         name: def.name,
         icon: def.icon,
-        position: catSeq - 1,
-        items: def.items.map((label, pos) => ({
-          id: `${catId}-i-${pos}`,
-          categoryId: catId,
+        position: pos++,
+      });
+      let itemPos = 0;
+      for (const label of def.items) {
+        await addDoc(collection(db, "items"), {
+          categoryId: catRef.id,
+          tripId,
           label,
           done: false,
-          position: pos,
-        })),
-      });
+          position: itemPos++,
+        });
+      }
     }
-    return tripResponse(tripId);
+
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
   },
 
   async addCategory(tripId: string, input: { name: string; icon?: string }): Promise<{ trip: ApiTrip }> {
-    await delay();
-    const trip = getTrip(tripId);
-    if (!trip) throw new Error("Trip not found");
-    const catId = uid();
-    trip.categories.push({
-      id: catId,
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const existing = await getDocs(
+      query(collection(db, "categories"), where("tripId", "==", tripId))
+    );
+    await addDoc(collection(db, "categories"), {
       tripId,
       name: input.name,
       icon: input.icon ?? "folder",
-      position: trip.categories.length,
-      items: [],
+      position: existing.size,
     });
-    return tripResponse(tripId);
+
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
   },
 
   async addItem(categoryId: string, input: { label: string }): Promise<{ trip: ApiTrip }> {
-    await delay();
-    for (const trip of _trips) {
-      const cat = trip.categories.find((c) => c.id === categoryId);
-      if (cat) {
-        cat.items.push({
-          id: uid(),
-          categoryId,
-          label: input.label,
-          done: false,
-          position: cat.items.length,
-        });
-        return tripResponse(trip.id);
-      }
-    }
-    throw new Error("Category not found");
-  },
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
 
-  async updateItem(itemId: string, input: { done?: boolean; label?: string }): Promise<{ trip: ApiTrip }> {
-    await delay(80);
-    for (const trip of _trips) {
-      for (const cat of trip.categories) {
-        const item = cat.items.find((i) => i.id === itemId);
-        if (item) {
-          if (input.done !== undefined) item.done = input.done;
-          if (input.label !== undefined) item.label = input.label;
-          return tripResponse(trip.id);
-        }
-      }
-    }
-    throw new Error("Item not found");
-  },
+    const catDoc = await getDoc(doc(db, "categories", categoryId));
+    if (!catDoc.exists()) throw new Error("Category not found");
+    const tripId = catDoc.data().tripId;
 
-  async deleteItem(itemId: string): Promise<{ trip: ApiTrip }> {
-    await delay();
-    for (const trip of _trips) {
-      for (const cat of trip.categories) {
-        const idx = cat.items.findIndex((i) => i.id === itemId);
-        if (idx !== -1) {
-          cat.items.splice(idx, 1);
-          return tripResponse(trip.id);
-        }
-      }
-    }
-    throw new Error("Item not found");
-  },
-
-  async addTask(tripId: string, input: { label: string }): Promise<{ trip: ApiTrip }> {
-    await delay();
-    const trip = getTrip(tripId);
-    if (!trip) throw new Error("Trip not found");
-    trip.tasks.push({
-      id: uid(),
+    const existing = await getDocs(
+      query(collection(db, "items"), where("categoryId", "==", categoryId))
+    );
+    await addDoc(collection(db, "items"), {
+      categoryId,
       tripId,
       label: input.label,
       done: false,
-      createdAt: new Date().toISOString(),
+      position: existing.size,
     });
-    return tripResponse(tripId);
+
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
+  },
+
+  async updateItem(itemId: string, input: { done?: boolean; label?: string }): Promise<{ trip: ApiTrip }> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const itemDoc = await getDoc(doc(db, "items", itemId));
+    if (!itemDoc.exists()) throw new Error("Item not found");
+    const tripId = itemDoc.data().tripId;
+
+    await updateDoc(doc(db, "items", itemId), { ...input });
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
+  },
+
+  async deleteItem(itemId: string): Promise<{ trip: ApiTrip }> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const itemDoc = await getDoc(doc(db, "items", itemId));
+    if (!itemDoc.exists()) throw new Error("Item not found");
+    const tripId = itemDoc.data().tripId;
+
+    await deleteDoc(doc(db, "items", itemId));
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
+  },
+
+  async addTask(tripId: string, input: { label: string }): Promise<{ trip: ApiTrip }> {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    await addDoc(collection(db, "tasks"), {
+      tripId,
+      label: input.label,
+      done: false,
+      createdAt: serverTimestamp(),
+    });
+
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
   },
 
   async updateTask(taskId: string, input: { done?: boolean; label?: string }): Promise<{ trip: ApiTrip }> {
-    await delay(80);
-    for (const trip of _trips) {
-      const task = trip.tasks.find((t) => t.id === taskId);
-      if (task) {
-        if (input.done !== undefined) task.done = input.done;
-        if (input.label !== undefined) task.label = input.label;
-        return tripResponse(trip.id);
-      }
-    }
-    throw new Error("Task not found");
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error("Not authenticated");
+
+    const taskDoc = await getDoc(doc(db, "tasks", taskId));
+    if (!taskDoc.exists()) throw new Error("Task not found");
+    const tripId = taskDoc.data().tripId;
+
+    await updateDoc(doc(db, "tasks", taskId), { ...input });
+    const trip = await loadFullTrip(tripId);
+    return { trip: trip! };
   },
 };
