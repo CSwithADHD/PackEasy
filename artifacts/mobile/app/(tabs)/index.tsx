@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { palette } from "@/constants/colors";
@@ -12,11 +12,19 @@ export default function HomeScreen() {
   const router = useRouter();
   const { trips, setCurrentTrip } = useTrips();
 
+  const handleJoin = () => {
+    Alert.alert(
+      "Join a shared trip",
+      "Ask your trip organiser to share their invite code with you.",
+      [{ text: "Got it" }],
+    );
+  };
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <View style={{ flex: 1 }} />
-        <Pressable style={styles.joinBtn}>
+        <Pressable style={styles.joinBtn} onPress={handleJoin}>
           <Feather name="user-plus" size={14} color={palette.foreground} />
           <Text style={styles.joinText}>Join</Text>
         </Pressable>
@@ -60,9 +68,16 @@ export default function HomeScreen() {
                       {trip.emoji ? `${trip.emoji} ` : ""}
                       {trip.destination}
                     </Text>
-                    <View style={styles.editBtn}>
+                    <Pressable
+                      style={styles.editBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setCurrentTrip(trip.id);
+                        router.push("/(tabs)/trip");
+                      }}
+                    >
                       <Feather name="edit-2" size={14} color="#fff" />
-                    </View>
+                    </Pressable>
                   </View>
                   <View style={styles.statsBox}>
                     <View style={styles.statsRow}>

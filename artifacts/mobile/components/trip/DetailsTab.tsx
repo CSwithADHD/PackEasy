@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 
 import { palette } from "@/constants/colors";
 import type { Trip } from "@/context/TripContext";
@@ -14,6 +14,25 @@ const WEATHER = [
 ];
 
 export function DetailsTab({ trip }: { trip: Trip }) {
+  const handleExport = async () => {
+    const lines = trip.categories.flatMap((cat) => [
+      `\n[${cat.name}]`,
+      ...cat.items.map((item) => `  ${item.done ? "✅" : "⬜"} ${item.label}`),
+    ]);
+    const text = `Packing list for ${trip.destination}\n${lines.join("\n")}`;
+    try {
+      await Share.share({ message: text, title: `${trip.destination} packing list` });
+    } catch {}
+  };
+
+  const handleCollaborators = () => {
+    Alert.alert(
+      "Collaborators",
+      "Shared trip editing is a Pro feature. Invite friends coming soon!",
+      [{ text: "OK" }],
+    );
+  };
+
   return (
     <View style={{ gap: 24 }}>
       <View>
@@ -35,11 +54,11 @@ export function DetailsTab({ trip }: { trip: Trip }) {
 
       <View>
         <Text style={styles.sectionLabel}>COLLABORATORS</Text>
-        <Pressable style={styles.collabRow}>
+        <Pressable style={styles.collabRow} onPress={handleCollaborators}>
           <View style={styles.collabIcon}>
             <Feather name="user-plus" size={18} color={palette.primary} />
           </View>
-          <Text style={styles.collabAdd}>Add</Text>
+          <Text style={styles.collabAdd}>Add collaborators</Text>
           <View style={{ flex: 1 }} />
           <Feather name="chevron-right" size={18} color={palette.mutedForeground} />
         </Pressable>
@@ -47,7 +66,7 @@ export function DetailsTab({ trip }: { trip: Trip }) {
 
       <View style={styles.divider} />
 
-      <Pressable style={styles.exportBtn}>
+      <Pressable style={styles.exportBtn} onPress={handleExport}>
         <Feather name="upload" size={18} color={palette.foreground} />
         <Text style={styles.exportText}>Export Checklist</Text>
       </Pressable>

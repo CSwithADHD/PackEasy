@@ -18,6 +18,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { SUGGESTED_CITIES, SuggestedCity } from "@/constants/cities";
 import { palette } from "@/constants/colors";
+import { getSpotsForCity } from "@/constants/spots";
 import { useTrips } from "@/context/TripContext";
 
 export default function NewTripScreen() {
@@ -136,6 +137,25 @@ export default function NewTripScreen() {
               ) : null}
             </View>
           </View>
+
+          {selected && getSpotsForCity(selected.name).length > 0 ? (
+            <View style={{ gap: 10 }}>
+              <View style={styles.spotsHeader}>
+                <Text style={styles.sectionLabel}>
+                  🗺️  Top spots in {selected.name}
+                </Text>
+              </View>
+              {getSpotsForCity(selected.name).map((spot) => (
+                <View key={spot.name} style={styles.spotCard}>
+                  <Text style={styles.spotEmoji}>{spot.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.spotName}>{spot.name}</Text>
+                    <Text style={styles.spotDesc}>{spot.description}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -229,6 +249,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     paddingVertical: 16,
+  },
+  spotsHeader: {
+    marginTop: 4,
+  },
+  spotCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: palette.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: 12,
+  },
+  spotEmoji: {
+    fontSize: 26,
+    width: 40,
+    textAlign: "center",
+  },
+  spotName: {
+    color: palette.foreground,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  spotDesc: {
+    color: palette.mutedForeground,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginTop: 2,
   },
   footer: {
     paddingHorizontal: 24,

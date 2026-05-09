@@ -1,56 +1,104 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { palette } from "@/constants/colors";
 import { useTrips } from "@/context/TripContext";
 import type { Trip } from "@/context/TripContext";
 
 export function TasksTab({ trip }: { trip: Trip }) {
-  const { toggleTask } = useTrips();
+  const { toggleTask, addTask } = useTrips();
+  const [newTask, setNewTask] = useState("");
 
-  if (trip.tasks.length === 0) {
-    return (
-      <View style={styles.empty}>
-        <View style={styles.emptyIcon}>
-          <Feather name="check-square" size={56} color={palette.primary} />
-        </View>
-        <Text style={styles.emptyTitle}>No tasks yet</Text>
-        <Text style={styles.emptyText}>
-          Here you can add things to do before your trip
-        </Text>
-      </View>
-    );
-  }
+  const handleAdd = () => {
+    const trimmed = newTask.trim();
+    if (!trimmed) return;
+    addTask(trip.id, trimmed);
+    setNewTask("");
+  };
 
   return (
-    <View style={{ gap: 10 }}>
-      {trip.tasks.map((t) => (
-        <Pressable
-          key={t.id}
-          onPress={() => toggleTask(trip.id, t.id)}
-          style={styles.row}
-        >
-          <View style={[styles.checkbox, t.done && styles.checkboxDone]}>
-            {t.done ? <Feather name="check" size={14} color="#fff" /> : null}
+    <View style={{ gap: 12 }}>
+      <View style={styles.addRow}>
+        <Feather name="plus" size={18} color={palette.mutedForeground} />
+        <TextInput
+          value={newTask}
+          onChangeText={setNewTask}
+          placeholder="Add a task"
+          placeholderTextColor={palette.mutedForeground}
+          style={styles.addInput}
+          onSubmitEditing={handleAdd}
+          returnKeyType="done"
+        />
+        {newTask.trim().length > 0 && (
+          <Pressable onPress={handleAdd} style={styles.addBtn}>
+            <Feather name="arrow-right" size={16} color="#fff" />
+          </Pressable>
+        )}
+      </View>
+
+      {trip.tasks.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Feather name="check-square" size={48} color={palette.primary} />
           </View>
-          <Text style={[styles.label, t.done && styles.labelDone]}>{t.label}</Text>
-        </Pressable>
-      ))}
+          <Text style={styles.emptyTitle}>No tasks yet</Text>
+          <Text style={styles.emptyText}>Add things to do before your trip above</Text>
+        </View>
+      ) : (
+        <View style={{ gap: 8 }}>
+          {trip.tasks.map((t) => (
+            <Pressable
+              key={t.id}
+              onPress={() => toggleTask(trip.id, t.id)}
+              style={styles.row}
+            >
+              <View style={[styles.checkbox, t.done && styles.checkboxDone]}>
+                {t.done ? <Feather name="check" size={14} color="#fff" /> : null}
+              </View>
+              <Text style={[styles.label, t.done && styles.labelDone]}>{t.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  addRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: palette.surfaceAlt,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 54,
+  },
+  addInput: {
+    flex: 1,
+    fontFamily: "Inter_500Medium",
+    color: palette.foreground,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: palette.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   empty: {
     alignItems: "center",
-    paddingVertical: 64,
-    gap: 14,
+    paddingVertical: 48,
+    gap: 12,
   },
   emptyIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     backgroundColor: palette.primarySoft,
     alignItems: "center",
     justifyContent: "center",
@@ -58,14 +106,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: palette.foreground,
     fontFamily: "Inter_700Bold",
-    fontSize: 18,
+    fontSize: 17,
   },
   emptyText: {
     color: palette.mutedForeground,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     textAlign: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
   },
   row: {
     flexDirection: "row",

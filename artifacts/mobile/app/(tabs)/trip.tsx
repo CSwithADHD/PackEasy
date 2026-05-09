@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChecklistTab } from "@/components/trip/ChecklistTab";
@@ -46,10 +46,26 @@ export default function TripScreen() {
         showBack
         right={
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable style={styles.headerBtn}>
+            <Pressable
+              style={styles.headerBtn}
+              onPress={() => Alert.alert("Search", "Search within your packing list coming soon.")}
+            >
               <Feather name="search" size={16} color={palette.foreground} />
             </Pressable>
-            <Pressable style={styles.headerBtn}>
+            <Pressable
+              style={styles.headerBtn}
+              onPress={() =>
+                Alert.alert(
+                  currentTrip.destination,
+                  "More options",
+                  [
+                    { text: "Rename trip", onPress: () => Alert.alert("Coming Soon", "Rename trip will be available in a future update.") },
+                    { text: "Delete trip", style: "destructive", onPress: () => Alert.alert("Coming Soon", "Delete trip will be available in a future update.") },
+                    { text: "Cancel", style: "cancel" },
+                  ],
+                )
+              }
+            >
               <Feather name="more-vertical" size={16} color={palette.foreground} />
             </Pressable>
           </View>

@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { palette } from "@/constants/colors";
@@ -44,6 +44,31 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: "Check out PackEasy — the smartest travel packing app! 🧳",
+        title: "PackEasy",
+      });
+    } catch {}
+  };
+
+  const handleFeedback = () => {
+    Linking.openURL("mailto:feedback@packeasy.app?subject=PackEasy Feedback").catch(() =>
+      Alert.alert("Feedback", "Send your feedback to feedback@packeasy.app")
+    );
+  };
+
+  const handlePrivacy = () => {
+    Linking.openURL("https://packeasy.app/privacy").catch(() =>
+      Alert.alert("Privacy Policy", "Visit packeasy.app/privacy for our privacy policy")
+    );
+  };
+
+  const comingSoon = (feature: string) => {
+    Alert.alert("Coming Soon", `${feature} will be available in a future update.`);
+  };
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <Text style={styles.pageTitle}>Settings</Text>
@@ -80,24 +105,24 @@ export default function SettingsScreen() {
         <View>
           <Text style={styles.sectionLabel}>Preferences</Text>
           <View style={styles.card}>
-            <Row icon="sliders" label="Preferences" />
+            <Row icon="sliders" label="Preferences" onPress={() => comingSoon("Preferences")} />
             <View style={styles.divider} />
-            <Row icon="globe" label="Language" />
+            <Row icon="globe" label="Language" onPress={() => comingSoon("Language settings")} />
             <View style={styles.divider} />
-            <Row icon="moon" label="Theme" />
+            <Row icon="moon" label="Theme" onPress={() => comingSoon("Dark / light theme")} />
           </View>
         </View>
 
         <View>
           <Text style={styles.sectionLabel}>Support & Feedback</Text>
           <View style={styles.card}>
-            <Row icon="share-2" label="Share app" />
+            <Row icon="share-2" label="Share app" onPress={handleShare} />
             <View style={styles.divider} />
-            <Row icon="message-square" label="Feedback" />
+            <Row icon="message-square" label="Feedback" onPress={handleFeedback} />
             <View style={styles.divider} />
-            <Row icon="alert-triangle" label="Report a bug" />
+            <Row icon="alert-triangle" label="Report a bug" onPress={handleFeedback} />
             <View style={styles.divider} />
-            <Row icon="shield" label="Privacy Policy" />
+            <Row icon="shield" label="Privacy Policy" onPress={handlePrivacy} />
           </View>
         </View>
 
