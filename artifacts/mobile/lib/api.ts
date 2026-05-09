@@ -11,7 +11,6 @@ import {
   doc,
   getDoc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -94,22 +93,24 @@ async function loadFullTrip(tripId: string): Promise<ApiTrip | null> {
   const td = tripSnap.data();
 
   const catsSnap = await getDocs(
-    query(collection(db, "categories"), where("tripId", "==", tripId), orderBy("position"))
+    query(collection(db, "categories"), where("tripId", "==", tripId))
   );
 
   const categories: ApiCategory[] = [];
   for (const catDoc of catsSnap.docs) {
     const catData = catDoc.data();
     const itemsSnap = await getDocs(
-      query(collection(db, "items"), where("categoryId", "==", catDoc.id), orderBy("position"))
+      query(collection(db, "items"), where("categoryId", "==", catDoc.id))
     );
-    const items: ApiItem[] = itemsSnap.docs.map((d) => ({
-      id: d.id,
-      categoryId: catDoc.id,
-      label: d.data().label,
-      done: d.data().done ?? false,
-      position: d.data().position ?? 0,
-    }));
+    const items: ApiItem[] = itemsSnap.docs
+      .map((d) => ({
+        id: d.id,
+        categoryId: catDoc.id,
+        label: d.data().label,
+        done: d.data().done ?? false,
+        position: d.data().position ?? 0,
+      }))
+      .sort((a, b) => a.position - b.position);
     categories.push({
       id: catDoc.id,
       tripId,
@@ -119,17 +120,20 @@ async function loadFullTrip(tripId: string): Promise<ApiTrip | null> {
       items,
     });
   }
+  categories.sort((a, b) => a.position - b.position);
 
   const tasksSnap = await getDocs(
-    query(collection(db, "tasks"), where("tripId", "==", tripId), orderBy("createdAt"))
+    query(collection(db, "tasks"), where("tripId", "==", tripId))
   );
-  const tasks: ApiTask[] = tasksSnap.docs.map((d) => ({
-    id: d.id,
-    tripId,
-    label: d.data().label,
-    done: d.data().done ?? false,
-    createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-  }));
+  const tasks: ApiTask[] = tasksSnap.docs
+    .map((d) => ({
+      id: d.id,
+      tripId,
+      label: d.data().label,
+      done: d.data().done ?? false,
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    }))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   return {
     id: tripId,
@@ -190,7 +194,7 @@ export const api = {
     if (!userId) return { trips: [] };
 
     const snap = await getDocs(
-      query(collection(db, "trips"), where("userId", "==", userId), orderBy("createdAt"))
+      query(collection(db, "trips"), where("userId", "==", userId))
     );
 
     const trips: ApiTrip[] = [];
