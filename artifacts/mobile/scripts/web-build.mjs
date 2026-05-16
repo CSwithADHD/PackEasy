@@ -10,7 +10,45 @@ const { loadReplitFirebaseEnv } = require("./load-replit-env.cjs");
 loadReplitFirebaseEnv();
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const workspaceRoot = path.resolve(projectRoot, "..", "..");
 const distDir = path.join(projectRoot, "dist");
+
+async function loadEnvFile(filePath) {
+  try {
+    const content = await readFile(filePath, "utf8");
+
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+
+      if (!line || line.startsWith("#")) {
+        continue;
+      }
+
+      const match = line.match(/^([A-Z0-9_]+)\s*=\s*(.*)$/);
+      if (!match) {
+        continue;
+      }
+
+      const key = match[1];
+      let value = match[2].trim();
+
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+
+      if (process.env[key] == null) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    return;
+  }
+}
+
+await loadEnvFile(path.join(workspaceRoot, ".env.production"));
 
 function normalizeBasePath(value) {
   const trimmed = (value || "").trim();
