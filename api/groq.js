@@ -1,4 +1,6 @@
 module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.statusCode = 405;
@@ -15,7 +17,18 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+  let body = req.body || {};
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "Invalid JSON body" }));
+      return;
+    }
+  }
+
   const messages = body.messages;
   const model = body.model || "llama-3.1-8b-instant";
   const temperature = typeof body.temperature === "number" ? body.temperature : 0.7;
@@ -28,23 +41,33 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      max_tokens,
-      messages,
-    }),
-  });
+  try {
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature,
+        max_tokens,
+        messages,
+      }),
+    });
 
-  const payload = await groqResponse.json();
+    const payload = await groqResponse.json();
 
-  res.statusCode = groqResponse.status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(payload));
+    res.statusCode = groqResponse.status;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(payload));
+  } catch (error) {
+    res.statusCode = 502;
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Failed to reach Groq",
+      }),
+    );
+  }
 };

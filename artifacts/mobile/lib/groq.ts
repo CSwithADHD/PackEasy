@@ -17,7 +17,6 @@ export type RoamTripContext = {
 } | null;
 
 const GROQ_API_URL = process.env.EXPO_PUBLIC_GROQ_API_URL || "/api/groq";
-const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
 export function buildRoamSystemPrompt(trip: RoamTripContext): string {
@@ -50,23 +49,18 @@ export function buildRoamSystemPrompt(trip: RoamTripContext): string {
 }
 
 export async function sendGroqChat(messages: GroqChatMessage[]): Promise<string> {
-  const useDirectGroq = Boolean(GROQ_API_KEY);
-  const response = await fetch(
-    useDirectGroq ? "https://api.groq.com/openai/v1/chat/completions" : GROQ_API_URL,
-    {
-      method: "POST",
-      headers: {
-        ...(useDirectGroq ? { Authorization: `Bearer ${GROQ_API_KEY}` } : {}),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        temperature: 0.7,
-        max_tokens: 500,
-        messages,
-      }),
+  const response = await fetch(GROQ_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.7,
+      max_tokens: 500,
+      messages,
+    }),
+  });
 
   const payload = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
