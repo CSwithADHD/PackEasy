@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @workspace/mobile run web:build",
+  "outputDirectory": "artifacts/mobile/dist",
+  "installCommand": "pnpm install"
+}

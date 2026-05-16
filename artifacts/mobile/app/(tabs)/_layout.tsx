@@ -39,6 +39,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="roam"
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="message-circle" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           tabBarIcon: ({ focused, color }) => (

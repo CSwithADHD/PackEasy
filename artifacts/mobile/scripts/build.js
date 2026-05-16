@@ -3,10 +3,13 @@ const path = require("path");
 const { spawn } = require("child_process");
 const { Readable } = require("stream");
 const { pipeline } = require("stream/promises");
+const { loadReplitFirebaseEnv } = require("./load-replit-env.cjs");
 
 let metroProcess = null;
 
 const projectRoot = path.resolve(__dirname, "..");
+
+loadReplitFirebaseEnv();
 
 function findWorkspaceRoot(startDir) {
   let dir = startDir;

@@ -87,6 +87,10 @@ const DEFAULT_CATEGORIES = [
   },
 ];
 
+function makeToken(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 async function loadFullTrip(tripId: string): Promise<ApiTrip | null> {
   const tripSnap = await getDoc(doc(db, "trips", tripId));
   if (!tripSnap.exists()) return null;
