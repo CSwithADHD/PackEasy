@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -87,6 +87,14 @@ async function prepareGitHubPagesOutput() {
   console.log(`Prepared GitHub Pages output for base path ${basePath}`);
 }
 
+async function syncRootDist() {
+  const rootDistDir = path.join(workspaceRoot, "dist");
+
+  await rm(rootDistDir, { recursive: true, force: true });
+  await cp(distDir, rootDistDir, { recursive: true });
+  console.log("Synced root dist for Vercel");
+}
+
 const result = spawnSync("pnpm", ["exec", "expo", "export", "--platform", "web"], {
   stdio: "inherit",
   shell: true,
@@ -95,6 +103,7 @@ const result = spawnSync("pnpm", ["exec", "expo", "export", "--platform", "web"]
 
 if ((result.status ?? 0) === 0) {
   await prepareGitHubPagesOutput();
+  await syncRootDist();
 }
 
 process.exit(result.status ?? 0);
